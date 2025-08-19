@@ -6,26 +6,33 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.unit.sp
 
+// Immutable data class
 data class Task(
     val title: String,
-    var isDone: Boolean = false
+    val isDone: Boolean = false
 )
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            ToDoApp()
+            Surface(color = MaterialTheme.colorScheme.background) {
+                ToDoApp()
+            }
         }
     }
 }
@@ -33,17 +40,19 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToDoApp() {
-    val tasks = remember { mutableStateListOf(
-        Task("Buy food"),
-        Task("Go to caf"),
-        Task("Read for COSC 306")
-    ) }
+    val tasks = remember {
+        mutableStateListOf(
+            Task("Example task"),
+        )
+    }
 
-    var newTask by remember { mutableStateOf("") }
+    var newTaskText by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("My To-Do List") })
+            CenterAlignedTopAppBar(
+                title = { Text("My To-Do List") }
+            )
         }
     ) { padding ->
         Column(
@@ -51,22 +60,25 @@ fun ToDoApp() {
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // 🔹 Input Row for Adding Tasks
+            // Input Section
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                TextField(
-                    value = newTask,
-                    onValueChange = { newTask = it },
+                OutlinedTextField(
+                    value = newTaskText,
+                    onValueChange = { newTaskText = it },
                     placeholder = { Text("Enter new task") },
-                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true
                 )
                 Button(
                     onClick = {
-                        if (newTask.isNotBlank()) {
-                            tasks.add(Task(newTask))
-                            newTask = "" // clear after adding
+                        if (newTaskText.isNotBlank()) {
+                            tasks.add(Task(newTaskText.trim()))
+                            newTaskText = ""
                         }
                     }
                 ) {
@@ -76,14 +88,34 @@ fun ToDoApp() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 🔹 List of Tasks
-            LazyColumn {
-                items(tasks) { task ->
-                    TaskItem(
-                        task = task,
-                        onCheckedChange = { checked -> task.isDone = checked },
-                        onDelete = { tasks.remove(task) }
-                    )
+            // Task List
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Sort tasks to show incomplete ones first
+                val sortedTasks = tasks.sortedBy { it.isDone }
+
+                items(sortedTasks) { task ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        elevation = CardDefaults.cardElevation(4.dp)
+                    ) {
+                        TaskRow(
+                            task = task,
+                            onCheckedChange = { checked ->
+                                // Find the index of the task to update
+                                val index = tasks.indexOf(task)
+                                if (index != -1) {
+                                    // Create a new Task with the updated 'isDone' status
+                                    tasks[index] = task.copy(isDone = checked)
+                                }
+                            },
+                            onDelete = {
+                                tasks.remove(task)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -91,36 +123,46 @@ fun ToDoApp() {
 }
 
 @Composable
-fun TaskItem(task: Task, onCheckedChange: (Boolean) -> Unit, onDelete: () -> Unit) {
+fun TaskRow(
+    task: Task,
+    onCheckedChange: (Boolean) -> Unit,
+    onDelete: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(8.dp), // padding inside the card
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically  // Align entire row vertically center
     ) {
-        Row {
+        Row(
+            verticalAlignment = Alignment.CenterVertically  // Align checkbox and text vertically center
+        ) {
             Checkbox(
                 checked = task.isDone,
-                onCheckedChange = { onCheckedChange(it) }
+                onCheckedChange = onCheckedChange
             )
             Text(
                 text = task.title,
+                modifier = Modifier.padding(start = 8.dp),
                 style = if (task.isDone) {
                     TextStyle(
                         textDecoration = TextDecoration.LineThrough,
-                        color = Color.Gray
+                        color = Color.Gray,
+                        fontSize = 16.sp
                     )
                 } else {
-                    TextStyle(color = Color.Black)
-                },
-                modifier = Modifier.padding(start = 8.dp)
+                    TextStyle(
+                        color = Color.Black,
+                        fontSize = 16.sp
+                    )
+                }
             )
         }
-        IconButton(onClick = { onDelete() }) {
+        IconButton(onClick = onDelete) {
             Icon(
                 imageVector = Icons.Filled.Delete,
-                contentDescription = "Delete Task",
-                tint = Color.Red
+                contentDescription = "Delete task"
             )
         }
     }
